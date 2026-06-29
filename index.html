@@ -1,0 +1,821 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MS DQ Report Generator V4 — project44 MS Team</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  :root {
+    --bg: #ffffff;
+    --bg2: #f8f8f6;
+    --bg3: #f1efea;
+    --bg-info: #e6f1fb;
+    --bg-success: #eaf3de;
+    --bg-warn: #faeeda;
+    --bg-danger: #fcebeb;
+    --bg-purple: #eeedfe;
+    --text: #1a1a18;
+    --text2: #5a5a56;
+    --text3: #9a9a94;
+    --text-info: #0c447c;
+    --text-success: #27500a;
+    --text-warn: #633806;
+    --text-danger: #791f1f;
+    --text-purple: #3c3489;
+    --border: rgba(0,0,0,0.10);
+    --border2: rgba(0,0,0,0.18);
+    --blue: #185FA5;
+    --green: #3B6D11;
+    --amber: #854F0B;
+    --red: #A32D2D;
+    --radius: 8px;
+    --radius-lg: 12px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1c1c1a;
+      --bg2: #252522;
+      --bg3: #2e2e2b;
+      --bg-info: #0c2a4a;
+      --bg-success: #0f2a06;
+      --bg-warn: #2a1a04;
+      --bg-danger: #2a0a0a;
+      --bg-purple: #1a1840;
+      --text: #f0efea;
+      --text2: #b0afa8;
+      --text3: #70706a;
+      --text-info: #85b7eb;
+      --text-success: #97c459;
+      --text-warn: #ef9f27;
+      --text-danger: #f09595;
+      --text-purple: #afa9ec;
+      --border: rgba(255,255,255,0.10);
+      --border2: rgba(255,255,255,0.18);
+      --blue: #378add;
+      --green: #639922;
+      --amber: #ba7517;
+      --red: #e24b4a;
+    }
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg3); color: var(--text); font-size: 14px; line-height: 1.5; }
+  .shell { max-width: 1100px; margin: 0 auto; padding: 1.5rem 1.25rem 3rem; }
+  .topbar { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: .25rem; flex-wrap: wrap; gap: .5rem; }
+  h1 { font-size: 20px; font-weight: 600; }
+  .sub { font-size: 13px; color: var(--text2); margin-bottom: 1.5rem; }
+  .week-label { font-size: 12px; color: var(--text3); }
+
+  /* Upload */
+  .upload-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; margin-bottom: 1.25rem; }
+  .upload-zone { border: 1.5px dashed var(--border2); border-radius: var(--radius-lg); padding: 1.75rem 1.25rem; text-align: center; cursor: pointer; transition: .15s; background: var(--bg2); }
+  .upload-zone:hover { border-color: var(--blue); background: var(--bg); }
+  .upload-zone.done { border-color: var(--green); border-style: solid; background: var(--bg-success); }
+  .upload-zone.done * { color: var(--text-success) !important; }
+  .upload-icon { font-size: 32px; margin-bottom: .5rem; }
+  .upload-title { font-size: 13px; font-weight: 600; margin-bottom: .2rem; color: var(--text2); }
+  .upload-hint { font-size: 12px; color: var(--text3); }
+  .upload-fname { font-size: 12px; color: var(--text3); margin-top: .4rem; font-weight: 500; }
+
+  /* Config row */
+  .cfg-row { display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.25rem; align-items: flex-end; }
+  .cfg-item { display: flex; flex-direction: column; gap: .25rem; }
+  .cfg-item label { font-size: 11px; color: var(--text3); text-transform: uppercase; letter-spacing: .06em; }
+  .cfg-item select, .cfg-item input[type=number] { font-size: 13px; padding: .4rem .65rem; border: 1px solid var(--border2); border-radius: var(--radius); background: var(--bg); color: var(--text); }
+  .btn-run { padding: .5rem 1.4rem; font-size: 13px; font-weight: 600; border: none; border-radius: var(--radius); background: var(--blue); color: #fff; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; margin-top: 0; }
+  .btn-run:disabled { opacity: .35; cursor: not-allowed; }
+  .btn-run:not(:disabled):hover { opacity: .88; }
+
+  /* Progress */
+  .prog { height: 4px; background: var(--bg3); border-radius: 2px; overflow: hidden; margin: .75rem 0; }
+  .prog-bar { height: 4px; background: var(--blue); border-radius: 2px; width: 0; transition: width .4s ease; }
+
+  /* Tabs */
+  .tabs { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 1.25rem; border-bottom: 1px solid var(--border); padding-bottom: .5rem; }
+  .tab { padding: .4rem .9rem; font-size: 13px; cursor: pointer; border: 1px solid transparent; border-radius: var(--radius); background: transparent; color: var(--text2); transition: .15s; }
+  .tab:hover { background: var(--bg2); }
+  .tab.active { background: var(--bg-info); color: var(--text-info); border-color: var(--border2); font-weight: 500; }
+  .pane { display: none; } .pane.active { display: block; }
+
+  /* Cards / layout */
+  .card { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1rem 1.125rem; margin-bottom: 1rem; }
+  .card:last-child { margin-bottom: 0; }
+  .g4 { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; margin-bottom: 1rem; }
+  .g3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin-bottom: 1rem; }
+  .g2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 10px; margin-bottom: 1rem; }
+  .metric-card { background: var(--bg2); border-radius: var(--radius); padding: 1rem; text-align: center; }
+  .metric-label { font-size: 11px; color: var(--text3); margin-bottom: .25rem; }
+  .metric-value { font-size: 24px; font-weight: 600; }
+  .metric-sub { font-size: 11px; color: var(--text3); margin-top: .15rem; }
+  h3 { font-size: 14px; font-weight: 600; margin-bottom: .75rem; color: var(--text); }
+  .sec-label { font-size: 11px; font-weight: 600; letter-spacing: .07em; text-transform: uppercase; color: var(--text3); margin-bottom: .75rem; }
+
+  /* Table */
+  .tbl { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .tbl th { font-size: 11px; font-weight: 600; color: var(--text3); text-transform: uppercase; letter-spacing: .05em; padding: .45rem .6rem; border-bottom: 1px solid var(--border); text-align: left; white-space: nowrap; }
+  .tbl td { padding: .45rem .6rem; border-bottom: 1px solid var(--border); color: var(--text2); max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tbl tr:last-child td { border-bottom: none; }
+  .tbl tr:hover td { background: var(--bg2); }
+  .tbl-wrap { overflow-x: auto; }
+
+  /* Tags */
+  .tag { display: inline-block; font-size: 11px; padding: 2px 7px; border-radius: 4px; font-weight: 500; white-space: nowrap; }
+  .tg { background: var(--bg-success); color: var(--text-success); }
+  .tw { background: var(--bg-warn); color: var(--text-warn); }
+  .td { background: var(--bg-danger); color: var(--text-danger); }
+  .ti { background: var(--bg-info); color: var(--text-info); }
+  .tp { background: var(--bg-purple); color: var(--text-purple); }
+
+  /* Bar */
+  .bar-bg { background: var(--bg3); border-radius: 3px; height: 7px; }
+  .bar-fill { height: 7px; border-radius: 3px; }
+  .perf-cell { display: flex; align-items: center; gap: 5px; }
+  .perf-pct { font-size: 11px; min-width: 32px; color: var(--text); }
+
+  /* RCA rows */
+  .rca-row { display: flex; justify-content: space-between; align-items: center; padding: .4rem 0; border-bottom: 1px solid var(--border); gap: 8px; }
+  .rca-row:last-child { border-bottom: none; }
+  .rca-label { font-size: 12px; color: var(--text2); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .rca-val { font-size: 12px; font-weight: 600; color: var(--text); flex-shrink: 0; }
+
+  /* Insights */
+  .insight { border-left: 3px solid var(--blue); border-radius: 0 var(--radius) var(--radius) 0; background: var(--bg2); padding: .65rem .9rem; margin-bottom: .65rem; }
+  .insight:last-child { margin-bottom: 0; }
+  .insight p { font-size: 12px; color: var(--text2); line-height: 1.6; }
+
+  /* Actions */
+  .action-row { display: flex; gap: .6rem; align-items: flex-start; padding: .55rem 0; border-bottom: 1px solid var(--border); }
+  .action-row:last-child { border-bottom: none; }
+  .action-num { width: 22px; height: 22px; border-radius: 50%; background: var(--bg-info); color: var(--text-info); font-size: 11px; font-weight: 600; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 1px; }
+
+  /* Buttons */
+  .btn { padding: .38rem .85rem; font-size: 12px; border: 1px solid var(--border2); border-radius: var(--radius); background: var(--bg); cursor: pointer; color: var(--text2); display: inline-flex; align-items: center; gap: 5px; transition: .15s; }
+  .btn:hover { background: var(--bg2); }
+  .btn-primary { background: var(--bg-info); color: var(--text-info); border-color: var(--blue); font-weight: 500; }
+  .btn-primary:hover { opacity: .85; background: var(--bg-info); }
+  .btn-full { width: 100%; justify-content: center; margin-top: .5rem; }
+
+  /* Generate panel */
+  .gen-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); gap: 1rem; margin-bottom: 1rem; }
+  .gen-card { background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1rem 1.125rem; }
+  .gen-card p { font-size: 12px; color: var(--text2); line-height: 1.6; margin-bottom: .75rem; }
+  .gen-inp { display: flex; flex-direction: column; gap: .25rem; margin-bottom: .5rem; }
+  .gen-inp label { font-size: 11px; color: var(--text3); }
+  .gen-inp input, .gen-inp select { font-size: 12px; padding: .35rem .5rem; border: 1px solid var(--border2); border-radius: var(--radius); background: var(--bg2); color: var(--text); }
+  .gen-inp select[multiple] { height: 88px; }
+
+  /* Empty state */
+  .empty { text-align: center; padding: 3rem 1rem; }
+  .empty-icon { font-size: 48px; margin-bottom: .75rem; opacity: .35; }
+  .empty p { font-size: 13px; color: var(--text3); margin-top: .4rem; }
+
+  /* Sort row */
+  .sort-row { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: .75rem; }
+  .btn-group { display: flex; gap: 6px; flex-wrap: wrap; }
+  @media (max-width: 600px) { .cfg-row { flex-direction: column; } .btn-run { width: 100%; justify-content: center; } }
+</style>
+</head>
+<body>
+<div class="shell">
+  <div class="topbar">
+    <h1>&#x1F4CA; MS DQ Report Generator <span style="font-size:13px;font-weight:400;color:var(--text3)">V4 &middot; MS Global Team</span></h1>
+    <span class="week-label" id="weekLabel"></span>
+  </div>
+  <p class="sub">Upload your raw data file to begin. Carrier list is optional — without it the dashboard includes all carriers found in the raw data.</p>
+
+  <div class="upload-grid">
+    <div class="upload-zone" id="z1" onclick="document.getElementById('f1').click()">
+      <div class="upload-icon">&#x1F4C8;</div>
+      <div class="upload-title">Raw data file</div>
+      <div class="upload-hint">.xlsx or .csv &middot; single sheet</div>
+      <div class="upload-fname" id="f1name">Click to upload</div>
+      <input type="file" id="f1" accept=".xlsx,.csv" style="display:none" onchange="handleFile(this,'f1','z1')">
+    </div>
+    <div class="upload-zone" id="z2" onclick="document.getElementById('f2').click()">
+      <div class="upload-icon">&#x1F4CB;</div>
+      <div class="upload-title">Carrier list <span style="font-size:11px;font-weight:400;opacity:.7">(optional)</span></div>
+      <div class="upload-hint">.xlsx &middot; Carrier Name, Mode &middot; skip to include all carriers</div>
+      <div class="upload-fname" id="f2name">Click to upload &nbsp;&mdash;&nbsp; or skip</div>
+      <input type="file" id="f2" accept=".xlsx,.csv" style="display:none" onchange="handleFile(this,'f2','z2')">
+    </div>
+  </div>
+
+  <div class="cfg-row">
+    <div class="cfg-item">
+      <label>Week start day</label>
+      <select id="weekStart">
+        <option value="0">Sunday</option>
+        <option value="1">Monday</option>
+      </select>
+    </div>
+    <div class="cfg-item">
+      <label>Week number</label>
+      <input type="number" id="weekNum" min="1" max="53" value="23" style="width:75px">
+    </div>
+    <div class="cfg-item">
+      <label>Year</label>
+      <input type="number" id="weekYear" value="2026" style="width:90px">
+    </div>
+    <div class="cfg-item">
+      <label>&nbsp;</label>
+      <div style="display:flex;gap:8px">
+        <button class="btn-run" id="runBtn" onclick="runDashboard()" disabled>&#9654; Generate dashboard</button>
+        <button class="btn" id="resetBtn" onclick="resetDashboard()" style="display:none">&#x21BA; Reset</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="progWrap" style="display:none"><div class="prog"><div class="prog-bar" id="progBar"></div></div></div>
+
+  <div id="emptyState" class="empty">
+    <div class="empty-icon">&#x2B06;</div>
+    <p style="font-size:14px;font-weight:500">Upload your raw data file to begin</p>
+    <p>Carrier list is optional &mdash; skip it to include all carriers in the raw data</p>
+  </div>
+
+  <div id="dashContent" style="display:none">
+    <div class="tabs" id="mainTabs">
+      <button class="tab active" onclick="showTab('t0')">&#x1F4CA; Overview</button>
+      <button class="tab" onclick="showTab('t1')">&#x1F69A; Carrier performance</button>
+      <button class="tab" onclick="showTab('t2')">&#x1F52C; RCA summary</button>
+      <button class="tab" onclick="showTab('t3')">&#x1F4C8; Trends &amp; analysis</button>
+      <button class="tab" onclick="showTab('t4')">&#x1F4E4; Generate reports</button>
+      <button class="tab" onclick="showTab('t5')">&#x2705; Action items</button>
+    </div>
+
+    <!-- OVERVIEW -->
+    <div id="t0" class="pane active">
+      <div class="sec-label" id="overviewLabel"></div>
+      <div class="g4" id="kpiCards"></div>
+      <div class="g4" id="trackCards"></div>
+      <div class="g3" id="regionCards"></div>
+      <div class="card"><h3>In-scope carrier summary</h3><div id="carrierSummaryTags" style="display:flex;gap:8px;flex-wrap:wrap"></div></div>
+    </div>
+
+    <!-- CARRIER PERFORMANCE -->
+    <div id="t1" class="pane">
+      <div class="sort-row">
+        <div class="sec-label" style="margin:0">Carrier performance &middot; in-scope only</div>
+        <div class="btn-group">
+          <span style="font-size:12px;color:var(--text3);align-self:center">Sort:</span>
+          <button class="btn" onclick="sortTbl('tracking')">Trackability</button>
+          <button class="btn" onclick="sortTbl('milestone')">Milestone</button>
+          <button class="btn" onclick="sortTbl('volume')">Volume</button>
+          <button class="btn" onclick="sortTbl('name')">Name</button>
+          <button class="btn btn-primary" onclick="downloadCarrierCSV()">&#x2B73; Download CSV</button>
+        </div>
+      </div>
+      <div class="card" style="padding:.5rem 0">
+        <div class="tbl-wrap">
+          <table class="tbl">
+            <thead><tr>
+              <th style="min-width:180px">Carrier</th>
+              <th>Mode</th><th>Volume</th><th>Not tracked</th>
+              <th style="min-width:130px">Trackability</th>
+              <th style="min-width:130px">Milestone completeness</th>
+              <th>Status</th>
+            </tr></thead>
+            <tbody id="carrierTbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- RCA -->
+    <div id="t2" class="pane">
+      <div class="sort-row">
+        <div class="sec-label" style="margin:0">Root cause analysis &middot; in-scope carriers</div>
+        <button class="btn btn-primary" onclick="downloadRCACSV()">&#x2B73; Download RCA CSV</button>
+      </div>
+      <div class="g2">
+        <div class="card"><h3>Top tracking errors</h3><div id="rcaErrors"></div></div>
+        <div class="card"><h3>Top milestone errors</h3><div id="rcaMilestone"></div></div>
+      </div>
+      <div class="g3">
+        <div class="card"><h3>North America</h3><div id="rcaNA"></div></div>
+        <div class="card"><h3>Europe</h3><div id="rcaEU"></div></div>
+        <div class="card"><h3>LATAM / APAC / Other</h3><div id="rcaOther"></div></div>
+      </div>
+      <div class="card">
+        <h3>Carrier-level RCA flags</h3>
+        <div class="tbl-wrap">
+          <table class="tbl">
+            <thead><tr><th style="min-width:160px">Carrier</th><th style="min-width:180px">Primary issue</th><th>Milestone pattern</th><th>Affected</th><th>Priority</th></tr></thead>
+            <tbody id="rcaCarrierTbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- TRENDS -->
+    <div id="t3" class="pane">
+      <div class="sec-label">Trends &amp; analysis &middot; computed from uploaded data</div>
+      <div class="g2">
+        <div class="card"><h3>&#x1F4C8; High performers</h3><div id="highPerf"></div></div>
+        <div class="card"><h3>&#x1F4C9; Bottom 3 performers</h3><div id="lowPerf"></div></div>
+      </div>
+      <div class="card" style="margin-bottom:1rem">
+        <h3>Patterns &amp; key observations</h3>
+        <div id="insights"></div>
+      </div>
+      <div class="card">
+        <h3>Trackability vs milestone completeness by region</h3>
+        <div id="chartLegend" style="display:flex;flex-wrap:wrap;gap:14px;margin-bottom:10px;font-size:12px;color:var(--text2)">
+          <span style="display:flex;align-items:center;gap:5px"><span style="width:10px;height:10px;border-radius:2px;background:#185FA5;display:inline-block"></span>Trackability %</span>
+          <span style="display:flex;align-items:center;gap:5px"><span style="width:10px;height:10px;border-radius:2px;background:#3B6D11;display:inline-block"></span>Milestone completeness %</span>
+        </div>
+        <div id="regionChartWrap" style="position:relative;width:100%;height:260px">
+          <canvas id="regionChart" role="img" aria-label="Bar chart comparing trackability and milestone completeness by region">Region performance chart</canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- GENERATE -->
+    <div id="t4" class="pane">
+      <div class="sec-label">Generate reports &middot; all outputs derived from uploaded data</div>
+      <div class="gen-grid">
+        <div class="gen-card">
+          <h3>&#x1F4CA; Master file (.xlsx)</h3>
+          <p>Consolidated DQ report for all in-scope carriers. Summary pivot, inscope sheet, region breakdowns, full shipment detail.</p>
+          <div class="gen-inp"><label>Analyst / sender name</label><input type="text" id="gMasterSender" placeholder="Your name"></div>
+          <button class="btn btn-primary btn-full" onclick="genMaster()">&#x2B73; Generate master file</button>
+          <div id="masterStatus" style="font-size:11px;color:var(--text-success);margin-top:.4rem;text-align:center"></div>
+        </div>
+        <div class="gen-card">
+          <h3>&#x1F5C2; Carrier reports (.xlsx)</h3>
+          <p>One Excel file per carrier. Report sheet (shipment-level) + Summary sheet (pivot + milestone table).</p>
+          <div class="gen-inp"><label>Select carriers</label><select id="gCarrierSel" multiple></select></div>
+          <button class="btn btn-primary btn-full" onclick="genCarriers()">&#x2B73; Generate carrier reports</button>
+          <p style="font-size:11px;color:var(--text3);margin-top:.4rem">Files named: {CARRIER}_{CUSTOMER}_Week{N}.xlsx</p>
+        </div>
+        <div class="gen-card">
+          <h3>&#x1F4E7; Outreach documents (.docx)</h3>
+          <p>One Word doc per carrier. Auto-fills carrier stats, week, date range, performance table, and ASK section.</p>
+          <div class="gen-inp"><label>Carrier</label><select id="gOutreachSel"></select></div>
+          <div class="gen-inp"><label>Response deadline (business days)</label><input type="number" id="gDeadline" value="3" min="1" max="10"></div>
+          <div class="gen-inp"><label>Sender name</label><input type="text" id="gSender" placeholder="Your name"></div>
+          <button class="btn btn-primary btn-full" onclick="genOutreach()">&#x2B73; Generate outreach docs</button>
+          <p style="font-size:11px;color:var(--text3);margin-top:.4rem">Named: EN_{CARRIER}_Outreach_Week{N}.docx</p>
+        </div>
+      </div>
+      <div class="card" style="background:var(--bg-warn)">
+        <p style="font-size:12px;color:var(--text-warn)">&#9432; The Generate buttons above prepare the exact specification for Claude to build your Excel/Word files. Click a button and Claude will generate the actual files in the next step. For carrier reports and outreach docs, open this dashboard alongside Claude.ai and click the generate button — Claude will receive the full carrier data and produce the files.</p>
+      </div>
+    </div>
+
+    <!-- ACTIONS -->
+    <div id="t5" class="pane">
+      <div class="sec-label">Action items &middot; auto-generated from data analysis</div>
+      <div class="g2">
+        <div class="card"><h3>Immediate actions &mdash; this week</h3><div id="immediateActions"></div></div>
+        <div class="card"><h3>Follow-up actions &mdash; next week+</h3><div id="followupActions"></div></div>
+      </div>
+      <div class="card">
+        <h3>Outreach prioritisation</h3>
+        <div class="tbl-wrap">
+          <table class="tbl">
+            <thead><tr><th style="min-width:160px">Carrier</th><th>Issue</th><th>Outreach</th><th>Priority</th><th>Mode</th></tr></thead>
+            <tbody id="outreachTbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const files={f1:null,f2:null};
+let state={};
+let chartInst=null;
+let sortKey='tracking';
+
+function handleFile(inp,fid,zid){
+  const f=inp.files[0];if(!f)return;
+  files[fid]=f;
+  document.getElementById(fid+'name').textContent=f.name;
+  document.getElementById(zid).classList.add('done');
+  if(files.f1)document.getElementById('runBtn').disabled=false;
+}
+
+function resetDashboard(){
+  files.f1=null;files.f2=null;
+  state={};sortKey='tracking';
+  if(chartInst){chartInst.destroy();chartInst=null;}
+  ['f1','f2'].forEach(fid=>{
+    document.getElementById(fid).value='';
+    document.getElementById(fid+'name').textContent=fid==='f1'?'Click to upload':'Click to upload \u00A0\u2014\u00A0 or skip';
+    document.getElementById(fid==='f1'?'z1':'z2').classList.remove('done');
+  });
+  document.getElementById('runBtn').disabled=true;
+  document.getElementById('resetBtn').style.display='none';
+  document.getElementById('dashContent').style.display='none';
+  document.getElementById('emptyState').style.display='block';
+  document.getElementById('weekLabel').textContent='';
+  document.getElementById('masterStatus').textContent='';
+  setProgress(0);
+  document.getElementById('progWrap').style.display='none';
+  showTab('t0');
+}
+
+function readFile(file){
+  return new Promise(res=>{
+    const r=new FileReader();
+    r.onload=e=>{
+      const type=file.name.toLowerCase().endsWith('.csv')?'string':'array';
+      const wb=XLSX.read(e.target.result,{type,cellDates:true});
+      res(XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{defval:''}));
+    };
+    if(file.name.toLowerCase().endsWith('.csv'))r.readAsText(file);
+    else r.readAsArrayBuffer(file);
+  });
+}
+
+function getWeekDateRange(week,year,startDay){
+  if(startDay===1){
+    const jan4=new Date(Date.UTC(year,0,4));
+    const jan4day=jan4.getUTCDay()||7;
+    const w1Mon=new Date(Date.UTC(year,0,4-(jan4day-1)));
+    const ms=w1Mon.getTime()+(week-1)*7*86400000;
+    const s=new Date(ms),e=new Date(ms+6*86400000);
+    const f=d=>`${d.getUTCDate()}/${d.getUTCMonth()+1}/${d.getUTCFullYear()}`;
+    return{label:`${f(s)} \u2013 ${f(e)}`};
+  }
+  const jan1=new Date(Date.UTC(year,0,1));
+  const jan1dow=jan1.getUTCDay();
+  const toFirstSun=jan1dow===0?0:7-jan1dow;
+  const s=new Date(Date.UTC(year,0,1+toFirstSun+(week-1)*7));
+  const e=new Date(s.getTime()+6*86400000);
+  const f=d=>`${d.getUTCDate()}/${d.getUTCMonth()+1}/${d.getUTCFullYear()}`;
+  return{label:`${f(s)} \u2013 ${f(e)}`};
+}
+
+function classifyRow(row){
+  const tracked=String(row['Tracked']||'').trim().toUpperCase();
+  const ms=String(row['# Of Milestones received / # Of Milestones expected']||'').trim();
+  const parts=ms.split('/');
+  const recv=parseInt(parts[0])||0;
+  const exp=parseInt(parts[1])||4;
+  if(tracked==='FALSE')return'Not Tracked';
+  if(recv>=exp&&exp>0)return'Fully Tracked';
+  if(recv===0)return'No Milestone Tracked';
+  return'Partially Tracked';
+}
+
+function getBarColor(v){
+  if(v>=0.85)return'#3B6D11';
+  if(v>=0.6)return'#185FA5';
+  if(v>=0.3)return'#BA7517';
+  return'#A32D2D';
+}
+function pct(v){return Math.round(v*100)+'%';}
+function statusTag(v){
+  if(v>=0.9)return'<span class="tag tg">Top performer</span>';
+  if(v>=0.6)return'<span class="tag ti">On track</span>';
+  if(v>=0.3)return'<span class="tag tw">Needs attention</span>';
+  return'<span class="tag td">Critical</span>';
+}
+function priorityTag(v){
+  if(v<0.25)return'<span class="tag td">P1</span>';
+  if(v<0.6)return'<span class="tag tw">P2</span>';
+  return'<span class="tag ti">P3</span>';
+}
+function setProgress(v){document.getElementById('progBar').style.width=v+'%';}
+
+async function runDashboard(){
+  document.getElementById('progWrap').style.display='block';
+  document.getElementById('emptyState').style.display='none';
+  document.getElementById('dashContent').style.display='none';
+  setProgress(10);
+
+  const rdPromise=readFile(files.f1);
+  const clPromise=files.f2?readFile(files.f2):Promise.resolve([]);
+  const[rd,cl]=await Promise.all([rdPromise,clPromise]);
+  setProgress(35);
+
+  const week=parseInt(document.getElementById('weekNum').value)||23;
+  const year=parseInt(document.getElementById('weekYear').value)||2026;
+  const startDay=parseInt(document.getElementById('weekStart').value);
+  const dateRange=getWeekDateRange(week,year,startDay);
+
+  document.getElementById('weekLabel').textContent=`Week ${week} \u00B7 ${dateRange.label}`;
+
+  const rdKeys=Object.keys(rd[0]||{});
+  const rdCarrierKey=rdKeys.find(k=>/carrier name/i.test(k))||'Carrier Name';
+  const customerKey=rdKeys.find(k=>/customer tenant/i.test(k))||'Customer Tenant Name';
+  const regionKey=rdKeys.find(k=>/pickup region/i.test(k))||'Pickup Region';
+  const trkErrKey=rdKeys.find(k=>/tracking error/i.test(k))||'Tracking Error';
+  const msErrKey=rdKeys.find(k=>/milestone error 1/i.test(k))||'Milestone Error 1';
+
+  const inscope=new Map();
+  const carrierListProvided=cl.length>0;
+  if(carrierListProvided){
+    const clKeys=Object.keys(cl[0]||{});
+    const clNameKey=clKeys.find(k=>/carrier/i.test(k))||clKeys[0];
+    const clModeKey=clKeys.find(k=>/mode/i.test(k))||clKeys[1];
+    cl.forEach(r=>{
+      const n=String(r[clNameKey]||'').trim();
+      const m=String(r[clModeKey]||'').trim();
+      if(n)inscope.set(n.toUpperCase(),{name:n,mode:m});
+    });
+  } else {
+    rd.forEach(r=>{
+      const n=String(r[rdCarrierKey]||'').trim();
+      if(n&&!inscope.has(n.toUpperCase()))inscope.set(n.toUpperCase(),{name:n,mode:'—'});
+    });
+  }
+
+  const customerName=rd[0]?String(rd[0][customerKey]||'Customer'):'Customer';
+  const scopedRows=rd.filter(r=>inscope.has(String(r[rdCarrierKey]||'').trim().toUpperCase()));
+  setProgress(55);
+
+  const total=scopedRows.length;
+  let ft=0,pt=0,nm=0,nt=0;
+  const cMap=new Map(),rMap=new Map(),teMap=new Map(),meMap=new Map();
+
+  scopedRows.forEach(r=>{
+    const cls=classifyRow(r);
+    if(cls==='Fully Tracked')ft++;
+    else if(cls==='Partially Tracked')pt++;
+    else if(cls==='No Milestone Tracked')nm++;
+    else nt++;
+
+    const cn=String(r[rdCarrierKey]||'').trim();
+    const cnU=cn.toUpperCase();
+    const info=inscope.get(cnU)||{name:cn,mode:''};
+    if(!cMap.has(cnU))cMap.set(cnU,{name:info.name,mode:info.mode,vol:0,tracked:0,fullyTracked:0,notTracked:0});
+    const c=cMap.get(cnU);
+    c.vol++;
+    if(cls!=='Not Tracked'){c.tracked++;if(cls==='Fully Tracked')c.fullyTracked++;}
+    else c.notTracked++;
+
+    const reg=String(r[regionKey]||'Unknown').trim();
+    if(!rMap.has(reg))rMap.set(reg,{total:0,tracked:0,fullyTracked:0});
+    const rv=rMap.get(reg);rv.total++;
+    if(cls!=='Not Tracked'){rv.tracked++;if(cls==='Fully Tracked')rv.fullyTracked++;}
+
+    const te=String(r[trkErrKey]||'').trim();
+    if(te)teMap.set(te,(teMap.get(te)||0)+1);
+    const me=String(r[msErrKey]||'').trim();
+    if(me)meMap.set(me,(meMap.get(me)||0)+1);
+  });
+
+  cMap.forEach(c=>{c.tracking=c.vol>0?c.tracked/c.vol:0;c.milestone=c.vol>0?c.fullyTracked/c.vol:0;});
+  setProgress(72);
+
+  state={week,year,dateRange,customerName,total,ft,pt,nm,nt,
+    trackability:total>0?(ft+pt+nm)/total:0,milestoneComp:total>0?ft/total:0,
+    cMap,rMap,teMap,meMap,inscope,rdCarrierKey,trkErrKey,msErrKey,regionKey,scopedRows,carrierListProvided};
+
+  renderOverview();renderCarrierTable();renderRCA();renderAnalysis();renderGenerate();renderActions();
+  setProgress(100);
+  setTimeout(()=>{
+    document.getElementById('progWrap').style.display='none';
+    document.getElementById('dashContent').style.display='block';
+    document.getElementById('resetBtn').style.display='inline-flex';
+  },300);
+}
+
+function renderOverview(){
+  const s=state;
+  document.getElementById('overviewLabel').textContent=`${s.customerName} \u00B7 Week ${s.week} \u00B7 ${s.dateRange.label}`;
+  document.getElementById('kpiCards').innerHTML=`
+    <div class="metric-card"><div class="metric-label">Total in-scope shipments</div><div class="metric-value">${s.total.toLocaleString()}</div><div class="metric-sub">${s.inscope.size} carriers</div></div>
+    <div class="metric-card"><div class="metric-label">Overall trackability</div><div class="metric-value" style="color:${s.trackability>=0.7?'var(--green)':'var(--red)'}">${pct(s.trackability)}</div><div class="metric-sub">tracked of total</div></div>
+    <div class="metric-card"><div class="metric-label">Full milestone rate</div><div class="metric-value" style="color:${s.milestoneComp>=0.5?'var(--green)':'var(--amber)'}">${pct(s.milestoneComp)}</div><div class="metric-sub">all milestones received</div></div>
+    <div class="metric-card"><div class="metric-label">Not tracked at all</div><div class="metric-value" style="color:${s.nt>0?'var(--red)':'var(--green)'}">${s.nt}</div><div class="metric-sub">${pct(s.total>0?s.nt/s.total:0)} of volume</div></div>`;
+  document.getElementById('trackCards').innerHTML=`
+    <div class="metric-card"><div class="metric-label">Fully tracked</div><div class="metric-value">${s.ft}</div><div class="metric-sub">4/4 milestones</div></div>
+    <div class="metric-card"><div class="metric-label">Partially tracked</div><div class="metric-value" style="color:var(--amber)">${s.pt}</div><div class="metric-sub">1\u20133 milestones</div></div>
+    <div class="metric-card"><div class="metric-label">No milestone tracked</div><div class="metric-value" style="color:var(--red)">${s.nm}</div><div class="metric-sub">tracked, 0 milestones</div></div>
+    <div class="metric-card"><div class="metric-label">Not tracked</div><div class="metric-value" style="color:var(--red)">${s.nt}</div><div class="metric-sub">no visibility</div></div>`;
+
+  let regHtml='';
+  s.rMap.forEach((rv,reg)=>{
+    const t=rv.total>0?Math.round(rv.tracked/rv.total*100)+'%':'0%';
+    regHtml+=`<div class="card" style="margin-bottom:0"><h3>${reg}</h3>
+      <div class="rca-row"><span class="rca-label">Trackability</span><span class="rca-val" style="color:var(--blue)">${t}</span></div>
+      <div class="rca-row"><span class="rca-label">Fully tracked</span><span class="rca-val">${rv.fullyTracked}</span></div>
+      <div class="rca-row" style="border-bottom:none"><span class="rca-label">Total shipments</span><span class="rca-val">${rv.total}</span></div>
+    </div>`;
+  });
+  document.getElementById('regionCards').innerHTML=regHtml||'<p style="color:var(--text3);font-size:12px">No region data found in the uploaded file.</p>';
+
+  const cars=[...s.cMap.values()];
+  const tops=cars.filter(c=>c.tracking>=0.85).length;
+  const crits=cars.filter(c=>c.tracking<0.25&&c.vol>=3).length;
+  document.getElementById('carrierSummaryTags').innerHTML=
+    `<span class="tag ti">${s.inscope.size} ${s.carrierListProvided?'in-scope':'total'} carriers</span>`+
+    (s.carrierListProvided?'':`<span class="tag tw">No carrier list &mdash; showing all carriers in raw data</span>`)+
+    (tops>0?`<span class="tag tg">${tops} high performers (\u226585%)</span>`:'')+
+    (crits>0?`<span class="tag td">${crits} critical carriers (&lt;25%)</span>`:'')+
+    `<span class="tag tw">${s.nt} shipments with zero visibility</span>`;
+}
+
+function renderCarrierTable(){
+  const cars=[...state.cMap.values()];
+  cars.sort((a,b)=>{
+    if(sortKey==='name')return a.name.localeCompare(b.name);
+    if(sortKey==='volume')return b.vol-a.vol;
+    if(sortKey==='milestone')return b.milestone-a.milestone;
+    return b.tracking-a.tracking;
+  });
+  document.getElementById('carrierTbody').innerHTML=cars.map(c=>`<tr>
+    <td title="${c.name}" style="font-weight:600;color:var(--text)">${c.name}</td>
+    <td><span class="tag tp" style="font-size:10px">${c.mode||'\u2014'}</span></td>
+    <td>${c.vol}</td>
+    <td style="color:${c.notTracked>0?'var(--red)':'var(--green)'}">${c.notTracked}</td>
+    <td><div class="perf-cell"><span class="perf-pct">${pct(c.tracking)}</span><div class="bar-bg" style="flex:1;min-width:60px"><div class="bar-fill" style="width:${pct(c.tracking)};background:${getBarColor(c.tracking)}"></div></div></div></td>
+    <td><div class="perf-cell"><span class="perf-pct">${pct(c.milestone)}</span><div class="bar-bg" style="flex:1;min-width:60px"><div class="bar-fill" style="width:${pct(c.milestone)};background:${getBarColor(c.milestone)}"></div></div></div></td>
+    <td>${statusTag(c.tracking)}</td>
+  </tr>`).join('');
+}
+
+function sortTbl(k){sortKey=k;renderCarrierTable();}
+
+function renderRCA(){
+  const s=state;
+  const topTE=[...s.teMap.entries()].sort((a,b)=>b[1]-a[1]).slice(0,8);
+  const topMS=[...s.meMap.entries()].filter(e=>e[0]).sort((a,b)=>b[1]-a[1]).slice(0,8);
+  document.getElementById('rcaErrors').innerHTML=topTE.map(([l,n])=>`<div class="rca-row"><span class="rca-label" title="${l}">${l||'(none)'}</span><span class="rca-val">${n}</span></div>`).join('')||'<p style="font-size:12px;color:var(--text3)">No tracking errors in this dataset.</p>';
+  document.getElementById('rcaMilestone').innerHTML=topMS.map(([l,n])=>`<div class="rca-row"><span class="rca-label" title="${l}">${l}</span><span class="rca-val">${n}</span></div>`).join('')||'<p style="font-size:12px;color:var(--text3)">No milestone errors in this dataset.</p>';
+
+  let naH='',euH='',otH='';
+  s.rMap.forEach((rv,reg)=>{
+    const row=`<div class="rca-row"><span class="rca-label">${reg}</span><span class="rca-val">${rv.total>0?Math.round(rv.tracked/rv.total*100)+'%':'0%'} tracked</span></div>`;
+    if(/north america/i.test(reg))naH+=row;
+    else if(/europe/i.test(reg))euH+=row;
+    else otH+=row;
+  });
+  document.getElementById('rcaNA').innerHTML=naH||'<p style="font-size:12px;color:var(--text3)">No NA data.</p>';
+  document.getElementById('rcaEU').innerHTML=euH||'<p style="font-size:12px;color:var(--text3)">No Europe data.</p>';
+  document.getElementById('rcaOther').innerHTML=otH||'<p style="font-size:12px;color:var(--text3)">No other region data.</p>';
+
+  const cars=[...s.cMap.values()].filter(c=>c.tracking<1||c.notTracked>0).sort((a,b)=>a.tracking-b.tracking).slice(0,12);
+  document.getElementById('rcaCarrierTbody').innerHTML=cars.map(c=>`<tr>
+    <td title="${c.name}">${c.name}</td>
+    <td style="color:var(--text2)">${c.notTracked>0?c.notTracked+' shipments not tracked':'Partial milestones only'}</td>
+    <td>${c.tracking>0&&c.milestone<c.tracking?'Milestone gaps':'0/4 milestones'}</td>
+    <td>${c.notTracked+Math.max(0,Math.round((c.tracking-c.milestone)*c.vol))}</td>
+    <td>${priorityTag(c.tracking)}</td>
+  </tr>`).join('');
+}
+
+function renderAnalysis(){
+  const s=state;
+  const cars=[...s.cMap.values()];
+  const highs=cars.filter(c=>c.tracking>=0.85&&c.vol>=3).sort((a,b)=>b.tracking-a.tracking).slice(0,4);
+  const lows=cars.filter(c=>c.vol>=3).sort((a,b)=>a.tracking-b.tracking).slice(0,3);
+
+  document.getElementById('highPerf').innerHTML=highs.length?highs.map(c=>`<div class="rca-row">
+    <div><div style="font-size:13px;font-weight:600">${c.name}</div><div style="font-size:11px;color:var(--text3)">${c.vol} shipments &middot; ${c.mode||'—'}</div></div>
+    <div style="text-align:right"><span class="tag tg">${pct(c.tracking)}</span><div style="font-size:11px;color:var(--text3);margin-top:2px">MS: ${pct(c.milestone)}</div></div>
+  </div>`).join(''):'<p style="font-size:12px;color:var(--text3)">No carriers at \u226585% this week.</p>';
+
+  document.getElementById('lowPerf').innerHTML=lows.map(c=>`<div class="rca-row">
+    <div><div style="font-size:13px;font-weight:600">${c.name}</div><div style="font-size:11px;color:var(--text3)">${c.vol} shipments &middot; ${c.notTracked} not tracked</div></div>
+    <div style="text-align:right"><span class="tag td">${pct(c.tracking)}</span><div style="font-size:11px;color:var(--text3);margin-top:2px">MS: ${pct(c.milestone)}</div></div>
+  </div>`).join('');
+
+  const insightData=[];
+  const zeroTrack=cars.filter(c=>c.tracking===0&&c.vol>=2);
+  const msGap=cars.filter(c=>c.tracking>0.7&&c.milestone<0.2);
+  const topTE=[...s.teMap.entries()].sort((a,b)=>b[1]-a[1]).slice(0,1).map(e=>e[0]).join('');
+  const topMS=[...s.meMap.entries()].filter(e=>e[0]).sort((a,b)=>b[1]-a[1]).slice(0,1).map(e=>e[0]).join('');
+
+  if(zeroTrack.length>0)insightData.push(`${zeroTrack.length} carrier(s) with <strong>zero trackability</strong> this week: ${zeroTrack.map(c=>c.name).join(', ')}. Immediate outreach required — API or push configuration failure suspected.`);
+  if(msGap.length>0)insightData.push(`${msGap.length} carrier(s) have <strong>high trackability but low milestone completeness</strong>: ${msGap.map(c=>c.name).join(', ')}. Position pings received but milestone events not triggered. Review event mapping configuration.`);
+  if(topTE)insightData.push(`Most common tracking failure: "<strong>${topTE}</strong>". Affects multiple in-scope carriers. Coordinate with p44 integration team for bulk resolution.`);
+  if(topMS)insightData.push(`Top milestone gap: "<strong>${topMS}</strong>". Review push carrier event configuration for missing status events.`);
+  if(s.trackability<0.7)insightData.push(`Overall trackability at <strong>${pct(s.trackability)}</strong> is below the 70% threshold. Prioritise P1 carrier outreach before end of week.`);
+  if(!insightData.length)insightData.push('Data quality looks strong this week. Continue monitoring and maintain outreach cadence for partial carriers.');
+
+  document.getElementById('insights').innerHTML=insightData.map(t=>`<div class="insight"><p>${t}</p></div>`).join('');
+
+  const regions=[...s.rMap.keys()];
+  const tData=regions.map(r=>{const rv=s.rMap.get(r);return rv.total>0?Math.round(rv.tracked/rv.total*100):0;});
+  const mData=regions.map(r=>{const rv=s.rMap.get(r);return rv.total>0?Math.round(rv.fullyTracked/rv.total*100):0;});
+
+  if(chartInst){chartInst.destroy();chartInst=null;}
+  const h=Math.max(240,regions.length*55+90);
+  document.getElementById('regionChartWrap').style.height=h+'px';
+  chartInst=new Chart(document.getElementById('regionChart'),{
+    type:'bar',
+    data:{labels:regions,datasets:[
+      {label:'Trackability %',data:tData,backgroundColor:'#185FA5',borderWidth:0},
+      {label:'Milestone completeness %',data:mData,backgroundColor:'#3B6D11',borderWidth:0}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false}},
+      scales:{y:{beginAtZero:true,max:100,ticks:{callback:v=>v+'%',font:{size:11}},grid:{color:'rgba(128,128,128,0.08)'}},
+        x:{ticks:{font:{size:11},autoSkip:false,maxRotation:25},grid:{display:false}}}}
+  });
+}
+
+function renderGenerate(){
+  const cars=[...state.cMap.values()].map(c=>c.name);
+  const sel=document.getElementById('gCarrierSel');
+  sel.innerHTML='<option value="__ALL__" selected>All in-scope carriers</option>'+cars.map(n=>`<option>${n}</option>`).join('');
+  const osel=document.getElementById('gOutreachSel');
+  osel.innerHTML='<option value="__ALL__">All in-scope carriers</option>'+cars.map(n=>`<option>${n}</option>`).join('');
+}
+
+function renderActions(){
+  const s=state;
+  const cars=[...s.cMap.values()];
+  const crits=cars.filter(c=>c.tracking<0.25&&c.vol>=3);
+  const warns=cars.filter(c=>c.tracking>=0.25&&c.tracking<0.6&&c.vol>=3);
+  const msGap=cars.filter(c=>c.tracking>=0.6&&c.milestone<0.2);
+  const topTE=[...s.teMap.entries()].sort((a,b)=>b[1]-a[1]).slice(0,1).map(e=>e[0]).join('');
+
+  const imm=[];
+  if(crits.length>0)imm.push(`Send P1 outreach to ${crits.length} critical carrier(s): ${crits.map(c=>c.name).join(', ')} — all below 25% trackability. Request carrier-side API and ELD logs within 24 hours.`);
+  imm.push(`Generate and dispatch all ${s.inscope.size} in-scope carrier reports and outreach emails via the Generate Reports tab.`);
+  if(topTE)imm.push(`Escalate top tracking error "<em>${topTE}</em>" to p44 integration team. Coordinate bulk resolution across affected carriers.`);
+  if(s.trackability<0.7)imm.push(`Overall trackability ${pct(s.trackability)} is below 70% threshold. Flag to customer contact and document in week notes.`);
+
+  const fup=[];
+  if(warns.length>0)fup.push(`Monitor ${warns.length} carrier(s) in the 25–60% trackability band. If no improvement by Week ${s.week+1}, escalate to P2 outreach.`);
+  if(msGap.length>0)fup.push(`Review milestone event mapping for: ${msGap.map(c=>c.name).join(', ')} — high trackability but &lt;20% milestone completeness.`);
+  fup.push(`Review carrier performance trend in Week ${s.week+1}. Set alert if overall trackability falls below 65% for two consecutive weeks.`);
+  fup.push(`Update in-scope carrier list if any carriers are to be added or removed for Week ${s.week+1}.`);
+
+  document.getElementById('immediateActions').innerHTML=imm.map((t,i)=>`<div class="action-row"><div class="action-num">${i+1}</div><p style="font-size:12px;color:var(--text2);line-height:1.6">${t}</p></div>`).join('');
+  document.getElementById('followupActions').innerHTML=fup.map((t,i)=>`<div class="action-row"><div class="action-num">${i+1}</div><p style="font-size:12px;color:var(--text2);line-height:1.6">${t}</p></div>`).join('');
+
+  document.getElementById('outreachTbody').innerHTML=[...s.cMap.values()].sort((a,b)=>a.tracking-b.tracking).slice(0,12).map(c=>`<tr>
+    <td title="${c.name}">${c.name}</td>
+    <td>${c.notTracked>0?c.notTracked+' not tracked':c.milestone<0.3?'Low milestone completeness':'Partial tracking gaps'}</td>
+    <td>${c.tracking>=0.85?'<span class="tag tg">Done</span>':'<span class="tag tw">Pending</span>'}</td>
+    <td>${priorityTag(c.tracking)}</td>
+    <td><span class="tag tp" style="font-size:10px">${c.mode||'—'}</span></td>
+  </tr>`).join('');
+}
+
+function showTab(id){
+  document.querySelectorAll('.pane').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  const idx=['t0','t1','t2','t3','t4','t5'].indexOf(id);
+  document.querySelectorAll('.tab')[idx].classList.add('active');
+}
+
+function toCSV(headers,rows){
+  return[headers,...rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`))]
+    .map(r=>r.join(',')).join('\n');
+}
+function downloadBlob(content,filename){
+  const b=new Blob([content],{type:'text/csv'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=filename;a.click();
+}
+function downloadCarrierCSV(){
+  const s=state;
+  const h=['Carrier Name','Mode','Volume','Not Tracked','Trackability %','Milestone Completeness %','Status'];
+  const rows=[...s.cMap.values()].map(c=>[c.name,c.mode,c.vol,c.notTracked,
+    (c.tracking*100).toFixed(1),(c.milestone*100).toFixed(1),
+    c.tracking>=0.85?'High Performer':c.tracking<0.25?'Critical':c.tracking<0.6?'Needs Attention':'On Track']);
+  const cust=s.customerName.replace(/[^a-zA-Z0-9]/g,'_');
+  downloadBlob(toCSV(h,rows),`${cust}_CarrierPerformanceSummary_Week${s.week}.csv`);
+}
+function downloadRCACSV(){
+  const s=state;
+  const h=['Error Type','Category','Count'];
+  const rows=[
+    ...[...s.teMap.entries()].sort((a,b)=>b[1]-a[1]).map(([l,n])=>[l,'Tracking Error',n]),
+    ...[...s.meMap.entries()].filter(e=>e[0]).sort((a,b)=>b[1]-a[1]).map(([l,n])=>[l,'Milestone Error',n])
+  ];
+  const cust=s.customerName.replace(/[^a-zA-Z0-9]/g,'_');
+  downloadBlob(toCSV(h,rows),`${cust}_RCA_Summary_Week${s.week}.csv`);
+}
+
+function genMaster(){
+  const s=state;
+  const sender=document.getElementById('gMasterSender').value||'MS Team';
+  const prompt=`Generate the master DQ report Excel file (.xlsx) for ${s.customerName}, Week ${s.week} (${s.dateRange.label}). In-scope carriers: ${[...s.inscope.values()].map(c=>c.name).join(', ')}. Include: Summary pivot sheet, In-scope carriers sheet (Carrier Name, Volume, Volume Not Tracked, Volume Tracked, Volume Tracked with All Milestones, Tracking Performance %, Milestone Completeness %, Mode), region breakdown sheets for each region in the data, and full shipment detail sheet. Prepared by: ${sender}.`;
+  navigator.clipboard.writeText(prompt).catch(()=>{});
+  document.getElementById('masterStatus').textContent='Prompt copied to clipboard — paste into Claude to generate the file.';
+}
+function genCarriers(){
+  const s=state;
+  const sel=document.getElementById('gCarrierSel');
+  const chosen=[...sel.options].filter(o=>o.selected).map(o=>o.value);
+  const target=chosen.includes('__ALL__')?`all ${s.inscope.size} in-scope carriers`:chosen.join(', ');
+  const prompt=`Generate individual carrier Excel report files (.xlsx) for: ${target}. Customer: ${s.customerName}, Week ${s.week} (${s.dateRange.label}). Each file: Report sheet (shipment-level) + Summary sheet (pivot + milestone table). Name: {CARRIER}_${s.customerName.replace(/[^a-zA-Z0-9]/g,'_')}_Week${s.week}.xlsx`;
+  navigator.clipboard.writeText(prompt).catch(()=>{});
+  alert('Prompt copied to clipboard — paste into Claude.ai to generate the carrier report files.');
+}
+function genOutreach(){
+  const s=state;
+  const carrier=document.getElementById('gOutreachSel').value;
+  const deadline=document.getElementById('gDeadline').value||'3';
+  const sender=document.getElementById('gSender').value||'MS Team';
+  const target=carrier==='__ALL__'?`all ${s.inscope.size} in-scope carriers`:carrier;
+  const cData=carrier!=='__ALL__'?s.cMap.get(carrier.toUpperCase()):null;
+  const statsNote=cData?` Stats: ${cData.vol} total shipments, ${pct(cData.tracking)} trackability, ${pct(cData.milestone)} milestone completeness, ${cData.notTracked} not tracked.`:'';
+  const prompt=`Generate outreach Word documents (.docx) for: ${target}. Customer: ${s.customerName}, Week ${s.week} (${s.dateRange.label}).${statsNote} Structure: greeting, intro paragraph, performance summary table (Shipments Tracked / Impacted Tracking % / Milestones / Trackability), bold ASK section requesting comments within ${deadline} business days, closing. Sender: ${sender}. Naming: EN_{CARRIER_NAME}_Outreach_Week${s.week}.docx`;
+  navigator.clipboard.writeText(prompt).catch(()=>{});
+  alert('Prompt copied to clipboard — paste into Claude.ai to generate the outreach documents.');
+}
+</script>
+</body>
+</html>
